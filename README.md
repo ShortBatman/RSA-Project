@@ -129,7 +129,7 @@ These keys are tiny and exist only for learning. This is not secure software, so
 
 ## Team
 
-[Umer](https://github.com/ShortBatman) and Hamiz
+[Umer](https://github.com/ShortBatman) and [Hamiz](https://github.com/HamizAnwar2627)
 
 ## Sources
 
