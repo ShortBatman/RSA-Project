@@ -1,6 +1,4 @@
 #include "rsa.h"
-#include <vector>
-#include <cctype>
 using namespace std;
 
 // B0: (a * b) mod m using repeated doubling, so we never multiply two big numbers
@@ -47,12 +45,14 @@ uint64 gcd(uint64 a, uint64 b){
 
 // B3: returns g = gcd(a, b) and finds s and t so that g = s*a + t*b
 long long extended_gcd(long long a, long long b, long long &s, long long &t){
-    vector<long long> quotients;
+    long long quotients[100];   // an array is enough: Euclid never needs more than about 90 steps for 64-bit numbers
+    int count = 0;
     long long r0 = a;
     long long r1 = b;
     // step 1: go forward like the normal Euclidean algorithm and save every quotient
     while(r1 != 0){
-        quotients.push_back(r0 / r1);
+        quotients[count] = r0 / r1;
+        count++;
         long long r2 = r0 % r1;
         r0 = r1;
         r1 = r2;
@@ -61,7 +61,7 @@ long long extended_gcd(long long a, long long b, long long &s, long long &t){
     // step 2: go backward through the quotients (this is the back substitution we do by hand)
     long long x = 1;
     long long y = 0;
-    for(int i = quotients.size() - 1; i >= 0; i--){
+    for(int i = count - 1; i >= 0; i--){
         long long newX = y;
         long long newY = x - quotients[i] * y;
         x = newX;
@@ -153,14 +153,31 @@ int block_size(uint64 n){
     return k;
 }
 
+// our own versions of isalpha and toupper (static just means only this file uses them)
+static bool is_letter(char c){
+    if(c >= 'A' && c <= 'Z'){
+        return true;
+    }
+    if(c >= 'a' && c <= 'z'){
+        return true;
+    }
+    return false;
+}
+static char to_capital(char c){
+    if(c >= 'a' && c <= 'z'){
+        return c - 'a' + 'A';
+    }
+    return c;
+}
+
 // B8: turn a message into blocks of numbers and encrypt each block
 string encrypt_text(const string &text, uint64 n, uint64 e){
     int k = block_size(n);
     // keep only the letters and make them capital
     string letters = "";
     for(int i = 0; i < text.length(); i++){
-        if(isalpha(text[i])){
-            letters = letters + (char)toupper(text[i]);
+        if(is_letter(text[i])){
+            letters = letters + to_capital(text[i]);
         }
     }
     // add X at the end until the length is a multiple of k
@@ -192,13 +209,13 @@ string encrypt_text(const string &text, uint64 n, uint64 e){
 // helper for decrypt_text: turns one number back into k letters
 // we take two digits at a time from the right
 string number_to_letters(uint64 M, int k){
-    string letters(k, 'A');
-    for(int j = k - 1; j >= 0; j--){
+    string letters = "";
+    for(int j = 0; j < k; j++){
         int value = M % 100;
         if(value > 25){
             throw invalid_argument("wrong key");
         }
-        letters[j] = 'A' + value;
+        letters = (char)('A' + value) + letters;   // put the new letter at the front
         M = M / 100;
     }
     if(M != 0){

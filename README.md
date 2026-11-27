@@ -66,6 +66,7 @@ Bad input (for example a non-prime p, p equal to q, or a bad e) throws `std::inv
 ├── test_rsa.cpp     tests for every function
 ├── demo.cpp         interactive encrypt and decrypt demo
 ├── break_key.cpp    breaks a small public key
+├── ui/              web UI (rsa_ui.html) and its build files
 └── README.md
 ```
 
@@ -117,6 +118,12 @@ Message: NUMBERTHEORYISFUNX
 
 The final `X` is padding added by `encrypt_text`, so the message reads "NUMBER THEORY IS FUN".
 
+## Web UI (bonus)
+
+`ui/rsa_ui.html` is a single page that animates every RSA step: Euclid's table for `d`, the letter and block encoding, the square-and-multiply table for each block, and the key-breaking attack. It also has voice input for the message (Chrome or Edge). The page runs our own `rsa.cpp` compiled to WebAssembly, so no RSA library is used. Just open the file in a browser.
+
+To rebuild it you need [wasi-sdk](https://github.com/WebAssembly/wasi-sdk): `WASI_SDK=/path/to/wasi-sdk ./ui/build_wasm.sh`
+
 ## The attack
 
 `break_key.cpp` is given a public key `(n, e)` and a ciphertext. It factors `n` by trial division, finds φ = (p − 1)(q − 1), computes the private key with `mod_inverse`, and decrypts the message with `decrypt_text`.
@@ -129,7 +136,7 @@ These keys are tiny and exist only for learning. This is not secure software, so
 
 ## Team
 
-[Umer](https://github.com/ShortBatman) and [Hamiz](https://github.com/HamizAnwar2627)
+[Umer](https://github.com/ShortBatman) and Hamiz
 
 ## Sources
 

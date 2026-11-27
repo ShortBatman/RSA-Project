@@ -1,8 +1,24 @@
 #include <iostream>
 #include <string>
-#include <cctype>
 #include "rsa.h"
 using namespace std;
+
+// our own versions of isalpha and toupper (static just means only this file uses them)
+static bool is_letter(char c){
+    if(c >= 'A' && c <= 'Z'){
+        return true;
+    }
+    if(c >= 'a' && c <= 'z'){
+        return true;
+    }
+    return false;
+}
+static char to_capital(char c){
+    if(c >= 'a' && c <= 'z'){
+        return c - 'a' + 'A';
+    }
+    return c;
+}
 
 int main(){
     uint64 p, q, e, n, d;
@@ -45,8 +61,8 @@ int main(){
     // clean the message: letters only, all capital
     string cleaned = "";
     for(int i = 0; i < message.length(); i++){
-        if(isalpha(message[i])){
-            cleaned = cleaned + (char)toupper(message[i]);
+        if(is_letter(message[i])){
+            cleaned = cleaned + to_capital(message[i]);
         }
     }
     cout << "Cleaned: " << cleaned << endl;
