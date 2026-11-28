@@ -143,5 +143,8 @@ int main(){
     if(allPassed){
         cout << "All tests passed" << endl;
     }
+    else{
+        return 1;
+    }
     return 0;
 }

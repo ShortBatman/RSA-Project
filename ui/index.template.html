@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enigma RSA</title>
+<style>
+@font-face{font-family:"Stardos";src:url(data:font/woff2;base64,__FONT_STENCIL__) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"BarlowC";src:url(data:font/woff2;base64,__FONT_BARLOW__) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Courier";src:url(data:font/woff2;base64,__FONT_COURIER400__) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Courier";src:url(data:font/woff2;base64,__FONT_COURIER700__) format("woff2");font-weight:700;font-display:swap}
+
+:root{
+  --wood:#3a281b;
+  --steel:#1f2621;
+  --steel-hi:#2c352d;
+  --edge:#0f120e;
+  --brass:#c4a15a;
+  --brass-dk:#8a6c33;
+  --cream:#efe7cf;
+  --dim:#9b967f;
+  --lamp:#ffc94d;
+  --lamp-red:#ff5b37;
+  --paper:#f2eee1;
+  --ink:#18202d;
+  --ink-soft:#5d584a;
+  --stamp:#27489a;
+  --stamp-bad:#a3302b;
+  --stencil:"Stardos","Impact",serif;
+  --label:"BarlowC","Arial Narrow",sans-serif;
+  --type:"Courier","Courier New",monospace;
+}
+*{box-sizing:border-box}
+html{background:var(--wood)}
+body{margin:0;color:var(--cream);font:400 16px/1.5 var(--label);padding:26px 14px 70px;
+  background:
+    repeating-linear-gradient(92deg,rgba(255,255,255,.025) 0 2px,transparent 2px 9px),
+    repeating-linear-gradient(88deg,rgba(0,0,0,.18) 0 1px,transparent 1px 23px),
+    var(--wood)}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
+
+.wrap{max-width:1260px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:0 26px;align-items:start}
+
+/* steel panels */
+.panel-steel{position:relative;background:repeating-linear-gradient(0deg,rgba(255,255,255,.014) 0 1px,transparent 1px 3px),linear-gradient(180deg,var(--steel-hi),var(--steel) 40%);border:3px solid var(--edge);border-radius:14px;
+  box-shadow:inset 0 0 0 2px #46503f,inset 0 2px 0 3px rgba(255,255,255,.07),0 20px 30px -10px rgba(0,0,0,.6)}
+.screw{position:absolute;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e8cf93,var(--brass-dk));box-shadow:0 1px 2px #000}
+.screw::after{content:"";position:absolute;left:2px;right:2px;top:5.5px;height:2px;background:#2b200c;transform:rotate(35deg)}
+.s1{left:10px;top:10px}.s2{right:10px;top:10px}.s3{left:10px;bottom:10px}.s4{right:10px;bottom:10px}
+.machine{padding:26px 28px 28px;grid-column:1;grid-row:1}
+.papers{grid-column:1;grid-row:2;min-width:0}
+
+.head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 24px;align-items:flex-end;margin-bottom:20px}
+h1{margin:0;font:700 clamp(34px,6vw,56px)/.95 var(--stencil);letter-spacing:.02em;color:var(--cream)}
+.lede{margin:8px 0 0;max-width:44ch;color:var(--dim);font-size:16px}
+.lede code,.hint code{font-family:var(--type);color:var(--cream)}
+.gauges{display:flex;flex-direction:column;gap:8px;align-items:flex-end;font-size:15px;color:var(--dim)}
+.status{display:flex;align-items:center;gap:9px;color:var(--cream)}
+.status i{width:12px;height:12px;border-radius:50%;background:#554;box-shadow:inset 0 0 0 2px #0008}
+.status.ok i{background:#6dd68a;box-shadow:0 0 10px #6dd68a}
+.status.err i{background:var(--lamp-red);box-shadow:0 0 10px var(--lamp-red)}
+.speed{display:flex;align-items:center;gap:10px}
+.speed input[type=range]{width:100px;accent-color:var(--brass)}
+.speed label{display:flex;align-items:center;gap:6px;margin:0;font-size:inherit;color:inherit}
+
+/* mode switches */
+.modes{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 22px;padding:0 0 18px;border-bottom:2px solid var(--edge);box-shadow:0 2px 0 rgba(255,255,255,.06)}
+.sw{position:relative;flex:1 1 120px;background:linear-gradient(#3b4439,#2b322a);border:2px solid var(--edge);border-radius:6px;color:var(--cream);cursor:pointer;
+  padding:11px 12px 10px 34px;text-align:left;font:700 17px/1 var(--stencil);letter-spacing:.03em;box-shadow:0 4px 0 var(--edge),inset 0 1px 0 rgba(255,255,255,.1);transition:transform .08s,box-shadow .08s}
+.sw::before{content:"";position:absolute;left:11px;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;background:#1a1d17;box-shadow:inset 0 0 0 2px #000}
+.sw[aria-pressed=true]{transform:translateY(3px);box-shadow:0 1px 0 var(--edge),inset 0 2px 6px rgba(0,0,0,.6)}
+.sw[aria-pressed=true]::before{background:var(--lamp);box-shadow:0 0 12px var(--lamp)}
+
+.panel[hidden]{display:none}
+.panel h2{margin:0 0 4px;font:700 25px/1.1 var(--stencil);letter-spacing:.02em}
+.hint{margin:0 0 18px;color:var(--dim);max-width:62ch}
+.keyline{margin:0 0 16px;padding:7px 12px;background:#161a14;border:2px solid var(--edge);border-radius:4px;font:400 15px var(--type);color:var(--lamp);box-shadow:inset 0 2px 6px #000}
+
+/* top strip, plate, patch board */
+.strip{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;justify-content:space-between;margin:-8px 0 20px;padding:8px 14px;background:#12150f;border:2px solid var(--edge);border-radius:6px;box-shadow:inset 0 2px 6px #000;font-size:15px;color:var(--dim)}
+.snd{background:none;border:1.5px solid var(--brass-dk);border-radius:4px;padding:2px 12px;cursor:pointer;color:var(--cream);font:600 14px var(--label)}
+.snd[aria-pressed=true]{background:var(--brass);color:#1b1608}
+.plate{margin:30px auto 0;max-width:460px;text-align:center;padding:8px 14px 9px;border:2px solid var(--edge);border-radius:4px;
+  background:linear-gradient(#d9bb78,#a98842 55%,#c9a860);color:#2a1f08;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 2px 0 #000;text-shadow:0 1px 0 rgba(255,255,255,.35)}
+.plate b{display:block;font:700 19px/1.1 var(--stencil);letter-spacing:.04em}
+.plate span{font:600 15px var(--label)}
+#patch{display:block;width:100%;max-width:560px;margin-top:24px}
+#patch[hidden]{display:none}
+.pb-bg{fill:#12150f;stroke:#000;stroke-width:3}
+.pb-jack{fill:#050604;stroke:var(--brass-dk);stroke-width:4}
+.pb-hole{fill:#000}
+.pb-lab{font:700 15px var(--stencil);fill:var(--brass);text-anchor:middle}
+.pb-val{font:400 15px var(--type);fill:var(--cream);text-anchor:middle}
+.pb-valr{font:700 17px var(--type);fill:var(--lamp)}
+.cab{fill:none;stroke-linecap:round;stroke-dasharray:1;animation:draw .7s ease-out both}
+.cab-rub{stroke:#050604;stroke-width:9}.cab-col{stroke-width:5}
+.c1,.c3{stroke:#d8c79a}.c2{stroke:#c9552f}.c4{stroke:#6f9bd1}
+.cab-hi{stroke:rgba(255,255,255,.35);stroke-width:1.2;transform:translateY(-1.5px)}
+.pb-plug{fill:var(--brass);stroke:#000;stroke-width:2;animation:pop .3s both;transform-box:fill-box;transform-origin:center}
+
+/* rotor windows */
+.rotors{display:flex;flex-wrap:wrap;gap:16px 22px;align-items:flex-end}
+.rotor{display:flex;flex-direction:column;gap:5px;align-items:center}
+.rotor > span{font-size:15px;color:var(--brass)}
+.rbody{display:flex;align-items:center;gap:7px}
+.win{background:linear-gradient(#050604,#14170f);border:3px solid var(--brass-dk);border-radius:6px;padding:6px 12px;box-shadow:inset 0 4px 10px #000,0 0 0 2px var(--edge),inset 0 -10px 18px rgba(255,255,255,.04);position:relative}
+.win::after{content:"";position:absolute;left:0;right:0;top:0;height:42%;background:linear-gradient(rgba(255,255,255,.1),transparent);pointer-events:none}
+.win:focus-within{box-shadow:inset 0 4px 10px #000,0 0 0 2px var(--lamp),0 0 14px rgba(255,201,77,.55)}
+.win input{display:block;background:transparent;border:0;outline:0;color:#fbf3d2;font:700 29px/1.15 var(--type);text-align:center;letter-spacing:.12em;width:4ch;min-width:3ch;max-width:100%}
+.knob{width:30px;height:30px;border-radius:50%;border:2px solid var(--edge);cursor:pointer;color:var(--cream);font-size:12px;line-height:1;padding:0;
+  background:repeating-conic-gradient(#4b5649 0 8deg,#2f372e 8deg 16deg);box-shadow:0 3px 0 var(--edge)}
+.knob:active{transform:translateY(2px);box-shadow:0 1px 0 var(--edge)}
+.fine{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px;font-size:15px;color:var(--dim)}
+.fine button{background:#161a14;border:1.5px solid var(--brass-dk);border-radius:4px;padding:3px 10px;color:var(--cream);cursor:pointer;font:400 14px var(--type)}
+.fine button:hover{background:var(--brass);color:#1b1608}
+
+.lever{background:linear-gradient(#d4b06a,var(--brass-dk));color:#1d1707;border:2px solid var(--edge);border-radius:8px;padding:12px 24px;cursor:pointer;
+  font:700 19px/1 var(--stencil);letter-spacing:.03em;box-shadow:0 5px 0 var(--edge),inset 0 1px 0 rgba(255,255,255,.35);transition:transform .08s,box-shadow .08s}
+.lever:active{transform:translateY(4px);box-shadow:0 1px 0 var(--edge)}
+.lever.plain{background:linear-gradient(#3b4439,#2b322a);color:var(--cream)}
+.act{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:20px}
+
+/* lampboard and keyboard */
+.board{margin:6px 0 18px;padding:14px 8px 10px;background:#161a14;border:3px solid var(--edge);border-radius:10px;box-shadow:inset 0 4px 12px #000}
+.brow{display:flex;justify-content:center;gap:10px;margin-bottom:8px;flex-wrap:nowrap}
+.lc{display:flex;flex-direction:column;align-items:center;gap:1px;width:42px}
+.lamp{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 38% 30%,#3d4238,#12150f 70%);
+  box-shadow:0 0 0 3px var(--brass-dk),0 0 0 5px var(--edge);font:600 17px var(--label);color:#7c7864;transition:background .12s,box-shadow .12s,color .12s}
+.lamp.on{background:radial-gradient(circle at 40% 35%,#fff3bf,var(--lamp) 55%,#c98a14);color:#2a1e00;box-shadow:0 0 0 3px var(--brass),0 0 0 5px var(--edge),0 0 22px 6px rgba(255,201,77,.7)}
+.lc small{font:400 11px var(--type);color:#76725f;margin-top:3px}
+.kbd{margin:0 0 18px;display:flex;flex-direction:column;gap:9px;align-items:center}
+.krow{display:flex;gap:9px;justify-content:center}
+.k{width:44px;height:44px;border-radius:50%;border:3px solid #0b0c09;cursor:pointer;font:600 18px var(--label);color:#14130e;
+  background:radial-gradient(circle at 38% 28%,#fffbee,#d7ceb2 75%);box-shadow:0 4px 0 #050604,0 0 0 2px #4a5347;transition:transform .06s,box-shadow .06s}
+.k:active{transform:translateY(3px);box-shadow:0 1px 0 #050604,0 0 0 2px #4a5347}
+.k.wide{width:150px;border-radius:22px;font-size:14px}
+.k.edit{width:62px;border-radius:22px;font-size:15px}
+.row{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:flex-end}
+.tape-in{display:block;width:100%;min-height:68px;resize:vertical;background:var(--paper);color:var(--ink);border:3px solid var(--edge);border-radius:4px;padding:10px 12px;font:400 18px/1.35 var(--type);box-shadow:inset 0 3px 8px rgba(0,0,0,.25)}
+.tape-in:focus{outline:3px solid var(--lamp)}
+label{display:block;color:var(--brass);font-size:15px;margin-bottom:3px}
+.f{flex:1 1 280px}
+.mic{width:48px;height:48px;border-radius:50%;border:3px solid var(--edge);cursor:pointer;display:grid;place-items:center;color:var(--cream);
+  background:repeating-conic-gradient(#4b5649 0 8deg,#2f372e 8deg 16deg);box-shadow:0 4px 0 var(--edge)}
+.mic svg{width:22px;height:22px}
+.mic.rec{background:var(--lamp-red);color:#fff;animation:rec 1s infinite}
+.mic:disabled{opacity:.35;cursor:not-allowed}
+@keyframes rec{50%{box-shadow:0 4px 0 var(--edge),0 0 0 8px rgba(255,91,55,.3)}}
+.notice{margin-top:16px;padding:9px 14px;border-left:6px solid var(--lamp-red);background:#3a1812;color:#ffd9cc;font-size:17px}
+
+/* the printout */
+.paper{position:relative;margin:30px 26px 0;padding:30px 44px 54px;color:var(--ink);font:400 16px/1.5 var(--type);
+  background:
+    radial-gradient(circle at 14px 16px,var(--wood) 0 4.5px,transparent 5px) 0 0/28px 28px repeat-y,
+    radial-gradient(circle at 14px 16px,var(--wood) 0 4.5px,transparent 5px) right 0 top 0/28px 28px repeat-y,
+    repeating-linear-gradient(transparent 0 25px,rgba(24,32,45,.05) 25px 26px),var(--paper);
+  box-shadow:0 14px 24px -8px rgba(0,0,0,.6)}
+.paper::after{content:"";position:absolute;left:0;right:0;bottom:-15px;height:16px;
+  background:linear-gradient(-45deg,transparent 8px,var(--paper) 0),linear-gradient(45deg,transparent 8px,var(--paper) 0);background-size:16px 16px;background-position:left bottom}
+.paper[hidden],.paper:has(.out:empty):not([style*="min-height"]){display:none}
+.paper,.slip{scroll-margin-top:16px}
+.panel:not([hidden]){animation:panelin .25s ease-out}
+@keyframes panelin{from{opacity:0;transform:translateY(6px)}}
+.out{counter-reset:s}
+.slip{margin:0 0 30px;counter-increment:s;animation:feed .3s ease-out both}
+@keyframes feed{from{opacity:0;transform:translateY(-8px)}}
+.slip h3{margin:0 0 8px;font:700 18px/1.3 var(--type);border-bottom:2px dashed var(--ink)}
+.slip h3::before{content:counter(s) ".  "}
+.note{margin:2px 0 10px;padding-left:12px;border-left:3px solid var(--ink-soft);color:var(--ink-soft);font-style:italic;max-width:56ch;font-size:15px}
+.eq{margin:5px 0}
+.eq b{font-weight:700;background:linear-gradient(transparent 58%,#ffd98a 58% 92%,transparent 92%)}
+.tw{overflow-x:auto;margin:8px 0}
+table{border-collapse:collapse;font:400 15px var(--type)}
+th{font-weight:700;text-align:right;padding:3px 16px 5px;border-bottom:2px solid var(--ink)}
+td{text-align:right;padding:3px 16px;border-bottom:1px dotted rgba(24,32,45,.45)}
+tr.new td{animation:inkin 1s ease-out}
+@keyframes inkin{from{background:#ffd98a}to{background:transparent}}
+td.last{font-weight:700;background:linear-gradient(transparent 12%,#ffd98a 12% 92%,transparent 92%)}
+.tiles{display:flex;flex-wrap:wrap;gap:10px 8px}
+.tile{display:flex;flex-direction:column;align-items:center;width:38px;animation:strike .25s both}
+.tile b{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 38% 28%,#fffbee,#d7ceb2 75%);border:3px solid #14130e;font:600 17px var(--label);color:#14130e;box-shadow:0 3px 0 #14130e}
+.tile.pad b{background:repeating-linear-gradient(135deg,#d7ceb2 0 4px,#fffbee 4px 7px)}
+.tile i{font:400 11px var(--type);font-style:normal;color:var(--ink-soft);margin-top:3px}
+@keyframes strike{from{transform:translateY(-8px);opacity:0}}
+.blocks{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0}
+.blk{font:400 15px var(--type);background:transparent;border:2px solid var(--ink);padding:4px 10px;cursor:pointer;text-align:left;color:var(--ink)}
+.blk small{display:block;font:400 12px var(--type);color:var(--ink-soft)}
+.blk[aria-pressed=true]{background:#ffd98a}
+.result{font:700 21px/1.3 var(--type);padding:12px 14px;border:3px double var(--ink);word-break:break-all;background:rgba(255,255,255,.4)}
+.stamp{display:inline-block;margin:8px 0 2px;padding:1px 12px 2px;border:3px solid var(--stamp);border-radius:4px;color:var(--stamp);font:700 18px var(--stencil);transform:rotate(-2.5deg);opacity:.88}
+.stamp.bad{border-color:var(--stamp-bad);color:var(--stamp-bad)}
+.bar{height:12px;border:2px solid var(--ink);margin:10px 0}
+.bar div{height:100%;width:0;background:var(--ink)}
+.paper .lever{box-shadow:0 5px 0 var(--edge)}
+
+/* rotor housing */
+.housing{position:sticky;top:16px;padding:20px 20px 22px;text-align:center;grid-column:2;grid-row:1 / span 2}
+.housing h2{margin:0 0 10px;font:700 18px/1.15 var(--stencil)}
+.housing svg{width:100%;height:auto;display:block;overflow:visible}
+.cap{margin:10px 0 10px;font-size:16px;color:var(--dim);text-align:left}
+.legend{display:flex;flex-direction:column;gap:5px;font-size:15px;color:var(--cream);text-align:left}
+.legend span{display:flex;align-items:center;gap:8px}
+.legend svg{width:18px;height:18px;flex:none}
+.again{margin-top:12px;background:none;border:2px solid var(--brass-dk);border-radius:4px;color:var(--cream);padding:4px 12px;cursor:pointer;font:600 15px var(--label)}
+.again:hover{background:var(--brass);color:#1b1608}
+.again[hidden]{display:none}
+
+footer{grid-column:1/-1;margin-top:30px;padding-top:14px;border-top:1px solid rgba(255,255,255,.18);color:#bdb59c;font-size:14px;max-width:90ch}
+footer code{font-family:var(--type);color:var(--cream)}
+
+/* clock (rotor) drawing */
+.rim-out{fill:#0f120e;stroke:var(--brass);stroke-width:5}
+.rim{fill:#1a1e16;stroke:#000;stroke-width:2}
+.tick{stroke:var(--cream);stroke-width:1.3;opacity:.8}
+.tick.big{stroke-width:2.6;opacity:1}
+.tl{font:400 11px var(--type);fill:var(--dim);text-anchor:middle}
+.w-disc{fill:#232a22;stroke:#000;stroke-width:2}
+.w-knurl{fill:none;stroke:#4a5446;stroke-width:6;stroke-dasharray:4 3.6}
+.w-let{font:600 12px var(--label);fill:var(--cream);text-anchor:middle}
+.w-inner{fill:none;stroke:#000;stroke-width:2}
+.w-hub{fill:#12150f;stroke:var(--brass);stroke-width:3}
+.hub-t{font-family:var(--stencil);font-weight:700;fill:var(--cream);text-anchor:middle}
+.ptr{fill:var(--brass);stroke:#000;stroke-width:1.5}
+#ringWheel{transition:transform .4s cubic-bezier(.4,1.5,.5,1);transform-origin:180px 180px}
+.d-pw{fill:none;stroke:var(--cream);stroke-width:2}
+.d-xx{fill:var(--cream)}
+.d-fin{fill:var(--lamp);stroke:#000;stroke-width:2}
+.d-m{fill:#1a1e16;stroke:var(--lamp);stroke-width:2.5}
+.d-c{fill:var(--lamp-red);stroke:#000;stroke-width:2}
+.d-pop{animation:pop .35s cubic-bezier(.3,1.6,.5,1) both;transform-box:fill-box;transform-origin:center}
+@keyframes pop{from{transform:scale(0)}}
+.l-trail{fill:none;stroke:var(--cream);stroke-width:1.5;opacity:.75;stroke-dasharray:1;animation:draw .5s ease-out both}
+.l-jump{fill:none;stroke:var(--lamp);stroke-width:2.4;stroke-dasharray:1;animation:draw .6s ease-out both}
+@keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+.lab{font:400 11px var(--type);fill:var(--cream);text-anchor:middle;paint-order:stroke;stroke:#0f120e;stroke-width:3px}
+
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr}
+  .machine{order:1;grid-column:1;grid-row:auto}
+  .housing{position:sticky;top:6px;z-index:20;order:2;grid-column:1;grid-row:auto;margin:14px 0 0;padding:8px 12px 10px;display:block;text-align:center}
+  .housing h2,.housing .screw,.housing .cap{display:none}
+  .housing svg#ring{width:min(300px,36vh);margin:0 auto}
+  .housing .legend{flex-direction:row;flex-wrap:wrap;justify-content:center;gap:2px 14px;font-size:13px;margin-top:2px}
+  .housing .again{margin-top:6px;padding:2px 10px;font-size:14px}
+  .paper,.slip{scroll-margin-top:calc(min(300px,36vh) + 90px)}
+  .papers{order:3;grid-column:1;grid-row:auto}
+  footer{order:4}
+}
+@media (max-width:640px){
+  body{padding:8px 4px 50px}
+  .machine{padding:20px 14px 22px}
+  .brow{gap:4px}.lc{width:30px}.lamp{width:28px;height:28px;font-size:13px;box-shadow:0 0 0 2px var(--brass-dk),0 0 0 3px var(--edge)}.lc small{display:none}
+  .krow{gap:5px}.k{width:31px;height:31px;font-size:14px;border-width:2px}.k.wide{width:100px}.k.edit{width:44px;font-size:12px}
+  .paper{margin:24px 0 0;padding:24px 22px 46px}
+  .win input{font-size:24px}
+  .gauges{align-items:flex-start}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="panel-steel machine">
+  <i class="screw s1"></i><i class="screw s2"></i><i class="screw s3"></i><i class="screw s4"></i>
+
+  <div class="strip">
+    <div class="status" id="status"><i></i><span>loading rsa.cpp…</span></div>
+    <div class="speed">
+      <span>Print speed</span><input type="range" id="speed" min="1" max="10" value="6" aria-label="Animation speed">
+      <label><input type="checkbox" id="instant"> skip animation</label>
+    </div>
+    <button class="snd" id="snd" aria-pressed="false">Sound: off</button>
+  </div>
+
+  <div class="head">
+    <div>
+      <h1>Enigma RSA</h1>
+      <p class="lede">Set a key, lock a message, unlock it again. Every calculation runs in our own <code>rsa.cpp</code>, and the printout below shows the working.</p>
+    </div>
+  </div>
+
+  <div class="modes" id="tabs">
+    <button class="sw" data-t="keys" aria-pressed="true">Make keys</button>
+    <button class="sw" data-t="enc" aria-pressed="false">Lock</button>
+    <button class="sw" data-t="dec" aria-pressed="false">Unlock</button>
+    <button class="sw" data-t="atk" aria-pressed="false">Break a key</button>
+  </div>
+
+  <section class="panel" id="t-keys">
+    <h2>Set the rotors</h2>
+    <p class="hint">p and q must be different primes. e must share no factor with φ = (p − 1)(q − 1). The knobs step to the next prime for p and q, and to the next usable value for e.</p>
+    <div class="rotors">
+      <div class="rotor"><span>p</span><div class="rbody"><button class="knob" data-step="p,-1" aria-label="previous p">▼</button><div class="win"><input id="p" value="61" inputmode="numeric" aria-label="p"></div><button class="knob" data-step="p,1" aria-label="next p">▲</button></div></div>
+      <div class="rotor"><span>q</span><div class="rbody"><button class="knob" data-step="q,-1" aria-label="previous q">▼</button><div class="win"><input id="q" value="53" inputmode="numeric" aria-label="q"></div><button class="knob" data-step="q,1" aria-label="next q">▲</button></div></div>
+      <div class="rotor"><span>e</span><div class="rbody"><button class="knob" data-step="e,-1" aria-label="previous e">▼</button><div class="win"><input id="e" value="17" inputmode="numeric" aria-label="e"></div><button class="knob" data-step="e,1" aria-label="next e">▲</button></div></div>
+    </div>
+    <div class="act"><button class="lever" id="mk">Make keys</button></div>
+    <div class="fine">
+      <span>Try:</span>
+      <button data-pq="61,53,17">61, 53, 17</button>
+      <button data-pq="43,59,13">43, 59, 13</button>
+      <button data-pq="1000003,1000033,65537">1000003, 1000033, 65537</button>
+    </div>
+    <div id="keyMsg"></div>
+    <svg id="patch" viewBox="0 0 540 316" hidden role="img" aria-label="Patch board: cables join p and q into n, and e and phi into d"></svg>
+  </section>
+
+  <section class="panel" id="t-enc" hidden>
+    <h2>Lock a message</h2>
+    <p class="hint">Type on the keys or the keyboard. Only letters are kept, and the last block is filled up with X. Each lamp shows the number its letter turns into.</p>
+    <p class="keyline" id="encKey">no keys yet: go to Make keys</p>
+    <div class="board" id="lamps" aria-hidden="true"></div>
+    <div class="kbd" id="keys"></div>
+    <div class="row">
+      <div class="f"><label for="msg">Message</label><textarea class="tape-in" id="msg" placeholder="Type, or press the mic and speak">Number theory is fun</textarea></div>
+      <button class="mic" id="mic" title="Speak your message" aria-label="Speak your message"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+    </div>
+    <div class="act"><button class="lever" id="go">Lock it</button></div>
+    <div id="encMsg"></div>
+  </section>
+
+  <section class="panel" id="t-dec" hidden>
+    <h2>Unlock a message</h2>
+    <p class="hint">Paste cipher blocks separated by spaces. The private key d does the unlocking.</p>
+    <p class="keyline" id="decKey">no keys yet: go to Make keys</p>
+    <label for="cipher">Cipher text</label>
+    <textarea class="tape-in" id="cipher" placeholder="Lock a message first, or paste blocks here"></textarea>
+    <div class="act"><button class="lever" id="dgo">Unlock it</button></div>
+    <div id="decMsg"></div>
+  </section>
+
+  <section class="panel" id="t-atk" hidden>
+    <h2>Break a small key</h2>
+    <p class="hint">An attacker only knows the public key and the cipher text. Factor n by trial division, rebuild φ and d, then read the message.</p>
+    <div class="rotors">
+      <div class="rotor"><span>n</span><div class="rbody"><div class="win"><input id="an" value="1000036000099" inputmode="numeric" aria-label="n"></div></div></div>
+      <div class="rotor"><span>e</span><div class="rbody"><div class="win"><input id="ae" value="65537" inputmode="numeric" aria-label="e"></div></div></div>
+    </div>
+    <div style="margin-top:18px"><label for="ac">Cipher text</label><textarea class="tape-in" id="ac">0614157364221 0502078796304 0031583460315</textarea></div>
+    <div class="act"><button class="lever" id="ago">Break it</button></div>
+    <div id="atkMsg"></div>
+  </section>
+
+  <!-- team plate: add roll numbers here -->
+  <div class="plate"><b>ENIGMA RSA</b><span>Umer Hassan 25L-0656 · Hamiz Anwar 25L-0507</span><span style="display:block">FAST-NUCES · Discrete Structures</span></div>
+</div>
+
+<div class="papers"><div class="paper" id="o-keys"><div class="out" id="keyOut"></div></div>
+<div class="paper" id="o-enc" hidden><div class="out" id="encOut"></div></div>
+<div class="paper" id="o-dec" hidden><div class="out" id="decOut"></div></div>
+<div class="paper" id="o-atk" hidden><div class="out" id="atkOut"></div></div>
+</div>
+
+<aside class="panel-steel housing" aria-label="Rotor showing numbers mod n">
+  <i class="screw s1"></i><i class="screw s2"></i><i class="screw s3"></i><i class="screw s4"></i>
+  <h2>Rotor: the numbers 0 to n − 1</h2>
+  <svg id="ring" viewBox="0 0 360 360" role="img" aria-label="A rotor with n contacts. Dots mark the numbers in the current calculation.">
+    <circle class="rim-out" cx="180" cy="180" r="154"/>
+    <circle class="rim" cx="180" cy="180" r="140"/>
+    <g id="ringTicks"></g>
+    <g id="ringWheel"></g>
+    <g id="ringHub"></g>
+    <g id="ringDyn"></g>
+    <path class="ptr" d="M180 38 L170 12 L190 12 Z"/>
+  </svg>
+  <p class="cap" id="ringCap">Make a key and the rotor gets its size. Every power and every block then shows up on it.</p>
+  <div class="legend" id="ringLegend"></div>
+  <button class="again" id="ringAll" hidden>show all blocks again</button>
+</aside>
+
+<footer>
+  Discrete Structures, Fall 2026, RSA project. The maths runs in <code>rsa.cpp</code> (our Part B code), compiled to WebAssembly with wasi-sdk. The page draws the tables itself and checks each final value against the answer from <code>rsa.cpp</code>.
+  The look borrows from the Enigma machine (keys, lampboard, rotors), but the cipher is RSA. The UI was built with help from an AI assistant (Claude), as the bonus rules allow. Fonts: Stardos Stencil, Barlow Condensed and Courier Prime (SIL Open Font License). Voice input uses the browser's Web Speech API.
+</footer>
+</div>
+
+<script>
+const WASM_B64 = "__WASM_B64__";
+let W = null;          // exports of rsa.wasm
+let keys = null;       // {p,q,e,n,phi,d}
+let runId = 0;         // stops old animations when a new one starts
+
+const $ = id => document.getElementById(id);
+const big = s => /^\d+$/.test(String(s).trim()) ? BigInt(String(s).trim()) : null;
+const u64 = x => BigInt.asUintN(64, x);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const delay = () => $("instant").checked ? 0 : Math.round(900 / Number($("speed").value) ** 1.1);
+const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+if(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) $("instant").checked = true;
+
+// ---------- load the wasm ----------
+async function loadWasm(){
+  const bytes = Uint8Array.from(atob(WASM_B64), c => c.charCodeAt(0));
+  const mod = await WebAssembly.compile(bytes);
+  const imports = {};
+  for(const i of WebAssembly.Module.imports(mod)){
+    (imports[i.module] ??= {})[i.name] = () => 0;   // we never touch files, so empty stubs are enough
+  }
+  const inst = await WebAssembly.instantiate(mod, imports);
+  W = inst.exports;
+  if(W._initialize) W._initialize();
+}
+function wText(fn, text, a, b){
+  const buf = new Uint8Array(W.memory.buffer, W.w_input_buffer(), 4096);
+  const bytes = new TextEncoder().encode(text).slice(0, 4000);
+  buf.set(bytes); buf[bytes.length] = 0;
+  fn(a, b);
+  return new TextDecoder().decode(new Uint8Array(W.memory.buffer, W.w_output_text(), W.w_output_length()));
+}
+const encryptText = (t, n, e) => wText(W.w_encrypt_text, t, n, e);
+const decryptText = (t, n, d) => wText(W.w_decrypt_text, t, n, d);
+
+// ---------- sound (off until the Sound button is pressed) ----------
+const Snd = (() => {
+  let ctx = null, on = false;
+  const burst = (type, f0, f1, dur, vol) => {
+    if(!on || !ctx) return;
+    const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    lp.type = "lowpass"; lp.frequency.value = 2200;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(lp); lp.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+  };
+  return {
+    toggle(){ on = !on; if(on){ ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); burst("square", 220, 70, .06, .18); } return on; },
+    key(){ burst("square", 220, 70, .06, .18); },
+    tick(){ burst("square", 1400, 900, .015, .05); },
+    clunk(){ burst("triangle", 140, 45, .14, .3); },
+    thunk(){ burst("triangle", 110, 40, .18, .35); }
+  };
+})();
+$("snd").onclick = () => { const on = Snd.toggle(); $("snd").setAttribute("aria-pressed", on); $("snd").textContent = on ? "Sound: on" : "Sound: off"; };
+document.addEventListener("click", ev => { if(ev.target.closest(".lever,.sw")) Snd.clunk(); });
+
+// ---------- the rotor (numbers on a clock face) ----------
+const Ring = (() => {
+  const NS = "http://www.w3.org/2000/svg", CX = 180, CY = 180, R = 140;
+  const ticks = $("ringTicks"), wheel = $("ringWheel"), hub = $("ringHub"), dyn = $("ringDyn");
+  let n = null, lastAll = null, angle = 0;
+  const mk = (tag, attrs, parent) => {
+    const e = document.createElementNS(NS, tag);
+    for(const k in attrs) e.setAttribute(k, attrs[k]);
+    if(parent) parent.appendChild(e);
+    return e;
+  };
+  const pos = (v, r = R) => {
+    const a = Number(v) / Number(n) * Math.PI * 2 - Math.PI / 2;
+    return [CX + r * Math.cos(a), CY + r * Math.sin(a)];
+  };
+  const swatch = cls => `<svg viewBox="0 0 18 18"><circle class="${cls}" cx="9" cy="9" r="5.5"/></svg>`;
+  const drawTicks = () => {
+    ticks.innerHTML = "";
+    for(let i = 0; i < 60; i++){
+      const major = i % 15 === 0, a = i / 60 * Math.PI * 2 - Math.PI / 2, r1 = R - (major ? 14 : 7);
+      mk("line", {class: "tick" + (major ? " big" : ""), x1: CX + r1 * Math.cos(a), y1: CY + r1 * Math.sin(a), x2: CX + R * Math.cos(a), y2: CY + R * Math.sin(a)}, ticks);
+    }
+  };
+  const drawWheel = () => {
+    wheel.innerHTML = "";
+    mk("circle", {class: "w-disc", cx: CX, cy: CY, r: 100}, wheel);
+    mk("circle", {class: "w-knurl", cx: CX, cy: CY, r: 97}, wheel);
+    for(let i = 0; i < 26; i++){
+      const deg = i * 360 / 26, a = deg * Math.PI / 180 - Math.PI / 2, x = CX + 76 * Math.cos(a), y = CY + 76 * Math.sin(a);
+      const t = mk("text", {class: "w-let", x, y: y + 4, transform: `rotate(${deg} ${x} ${y})`}, wheel);
+      t.textContent = String.fromCharCode(65 + i);
+    }
+    mk("circle", {class: "w-inner", cx: CX, cy: CY, r: 56}, wheel);
+  };
+  const setMid = txt => {
+    hub.innerHTML = "";
+    mk("circle", {class: "w-hub", cx: CX, cy: CY, r: 42}, hub);
+    const a = mk("text", {class: "hub-t", x: CX, y: CY - 6, style: "font-size:13px"}, hub); a.textContent = "mod";
+    const b = mk("text", {class: "hub-t", x: CX, y: CY + 16, style: `font-size:${Math.max(9, Math.min(21, 74 / txt.length * 1.9))}px`}, hub); b.textContent = txt;
+  };
+  return {
+    idle(){ drawTicks(); drawWheel(); setMid("n"); },
+    setN(newN){
+      n = newN; dyn.innerHTML = ""; drawTicks();
+      [0n, 1n, 2n, 3n].forEach(k => {
+        const v = n * k / 4n, p = pos(v, R - 28), long = String(n).length > 6;
+        const t = mk("text", {class: "tl", x: p[0], y: p[1] + 4}, ticks); t.textContent = long ? ["0", "n/4", "n/2", "3n/4"][Number(k)] : v.toString();
+      });
+      setMid(String(n));
+    },
+    spin(){ angle += 360 / 26; wheel.style.transform = `rotate(${angle}deg)`; },
+    clear(){ dyn.innerHTML = ""; },
+    dot(v, cls, text){
+      const [x, y] = pos(v);
+      mk("circle", {class: cls + " d-pop", cx: x, cy: y, r: cls === "d-fin" ? 8 : cls === "d-pw" ? 4.5 : 6}, dyn);
+      if(text){
+        const [lx, ly] = pos(v, R + 22);
+        const t = mk("text", {class: "lab", x: lx, y: ly + 4}, dyn); t.textContent = text;
+      }
+    },
+    link(a, b, cls){
+      if(a === b) return;
+      const [x1, y1] = pos(a), [x2, y2] = pos(b);
+      mk("path", {class: cls, pathLength: 1, d: `M${x1} ${y1} Q${CX} ${CY} ${x2} ${y2}`}, dyn);
+    },
+    caption(html){ $("ringCap").innerHTML = html; },
+    legend(items){ $("ringLegend").innerHTML = items.map(([c, t]) => `<span>${swatch(c)}${t}</span>`).join(""); },
+    remember(fn){ lastAll = fn; $("ringAll").hidden = !fn; },
+    replay(){ if(lastAll) lastAll(); }
+  };
+})();
+$("ringAll").onclick = () => Ring.replay();
+Ring.idle();
+
+// ---------- lampboard and keyboard ----------
+const LAYOUT = ["QWERTZUIO", "ASDFGHJK", "PYXCVBNML"];
+const lampTimers = {};
+function flashLamp(ch, printing){
+  if(!printing || !$("instant").checked) Snd.key();
+  const el = document.querySelector(`.lamp[data-l="${ch}"]`); if(!el) return;
+  el.classList.add("on"); clearTimeout(lampTimers[ch]);
+  lampTimers[ch] = setTimeout(() => el.classList.remove("on"), 420);
+}
+(() => {
+  $("lamps").innerHTML = LAYOUT.map(r => `<div class="brow">` + r.split("").map(c =>
+    `<div class="lc"><div class="lamp" data-l="${c}">${c}</div><small>${String(c.charCodeAt(0) - 65).padStart(2, "0")}</small></div>`).join("") + `</div>`).join("");
+  $("keys").innerHTML = LAYOUT.map(r => `<div class="krow">` + r.split("").map(c => `<button class="k" data-k="${c}" tabindex="-1">${c}</button>`).join("") + `</div>`).join("") +
+    `<div class="krow"><button class="k wide" data-k=" " tabindex="-1" aria-label="space">space</button><button class="k edit" data-k="back" tabindex="-1">delete</button></div>`;
+  $("keys").onclick = ev => {
+    const b = ev.target.closest(".k"); if(!b) return;
+    const k = b.dataset.k, t = $("msg");
+    if(k === "back") t.value = t.value.slice(0, -1);
+    else { t.value += k === " " ? " " : k; if(k !== " ") flashLamp(k); }
+  };
+  $("msg").addEventListener("input", ev => {
+    const ch = (ev.data || "").toUpperCase();
+    if(/^[A-Z]$/.test(ch)) flashLamp(ch);
+  });
+})();
+
+// ---------- step tables drawn by the page ----------
+function egcdTrace(a, b){
+  const fwd = []; let r0 = a, r1 = b;
+  while(r1 !== 0n){ const q = r0 / r1, r = r0 % r1; fwd.push({a:r0, b:r1, q, r}); r0 = r1; r1 = r; }
+  const back = []; let s = 1n, t = 0n;
+  back.push({q:"start", s, t});
+  for(let i = fwd.length - 1; i >= 0; i--){ const q = fwd[i].q; [s, t] = [t, s - q * t]; back.push({q, s, t}); }
+  return {fwd, back, g:r0, s, t};
+}
+function expTrace(b, n, m){
+  const rows = []; let x = 1n % m, power = b % m, i = 0;
+  while(n > 0n){
+    const bit = n & 1n;
+    rows.push({i, bit, power, x: bit ? (x * power) % m : x});
+    if(bit) x = (x * power) % m;
+    power = (power * power) % m; n >>= 1n; i++;
+  }
+  return {rows, result:x};
+}
+const bits = n => n.toString(2);
+const padTo = (v, w) => String(v).padStart(w, "0");
+
+// ---------- following the printout smoothly ----------
+let follow = true;
+["wheel","touchmove","keydown"].forEach(t => window.addEventListener(t, () => { follow = false; }, {passive:true}));
+const smooth = () => (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) ? "auto" : "smooth";
+function reset(out){
+  const paper = out.parentElement;
+  paper.style.minHeight = paper.offsetHeight + "px";
+  out.innerHTML = ""; follow = true;
+  paper.scrollIntoView({behavior: smooth(), block: "start"});
+  setTimeout(() => { paper.style.minHeight = ""; }, 900);
+}
+function keepInView(el){ if(follow) el.scrollIntoView({behavior: smooth(), block: "nearest"}); }
+
+// ---------- small ui helpers ----------
+function table(headers){
+  const t = document.createElement("table");
+  t.innerHTML = "<thead><tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr></thead><tbody></tbody>";
+  const w = document.createElement("div"); w.className = "tw"; w.appendChild(t);
+  return {wrap:w, body:t.querySelector("tbody")};
+}
+async function addRows(tb, rows, id, lastCell, onRow){
+  for(let k = 0; k < rows.length; k++){
+    if(id !== runId) return false;
+    const tr = document.createElement("tr"); tr.className = "new";
+    tr.innerHTML = rows[k].map((c, j) => `<td${lastCell && k === rows.length - 1 && j === rows[k].length - 1 ? ' class="last"' : ''}>${c}</td>`).join("");
+    tb.appendChild(tr); keepInView(tr);
+    Ring.spin(); if(!$("instant").checked) Snd.tick();
+    if(onRow) onRow(k);
+    await sleep(delay());
+  }
+  return true;
+}
+function work(parent, title, note){
+  const d = document.createElement("section"); d.className = "slip";
+  d.innerHTML = `<h3>${title}</h3>` + (note ? `<p class="note">${note}</p>` : "");
+  parent.appendChild(d); keepInView(d); return d;
+}
+function line(parent, html){ const d = document.createElement("div"); d.className = "eq"; d.innerHTML = html; parent.appendChild(d); return d; }
+function stamp(parent, ok, text){ Snd.thunk(); const s = document.createElement("div"); s.className = "stamp" + (ok ? "" : " bad"); s.textContent = text; parent.appendChild(s); }
+function showMsg(id, text){ $(id).innerHTML = text ? `<div class="notice">${text}</div>` : ""; }
+
+// ---------- modes ----------
+function goTab(t){
+  for(const b of $("tabs").children) b.setAttribute("aria-pressed", b.dataset.t === t);
+  for(const s of ["keys","enc","dec","atk"]){ $("t-" + s).hidden = s !== t; $("o-" + s).hidden = s !== t; }
+}
+$("tabs").onclick = ev => { const b = ev.target.closest("[data-t]"); if(b) goTab(b.dataset.t); };
+function updateKeyLines(){
+  $("encKey").textContent = keys ? `public key: n = ${keys.n}, e = ${keys.e}` : "no keys yet: go to Make keys";
+  $("decKey").textContent = keys ? `private key: d = ${keys.d} (n = ${keys.n})` : "no keys yet: go to Make keys";
+}
+
+// ---------- rotor windows ----------
+const fit = el => { el.style.width = (Math.max(3, el.value.length) * 1.2 + 1.6).toFixed(1) + "ch"; };
+["p","q","e","an","ae"].forEach(id => { fit($(id)); $(id).addEventListener("input", () => fit($(id))); });
+document.querySelectorAll("[data-pq]").forEach(c => c.onclick = () => {
+  const [p, q, e] = c.dataset.pq.split(","); $("p").value = p; $("q").value = q; $("e").value = e;
+  ["p","q","e"].forEach(i => fit($(i)));
+});
+document.querySelectorAll("[data-step]").forEach(b => b.onclick = () => {
+  const [id, d] = b.dataset.step.split(","), dir = BigInt(d), el = $(id);
+  let x = big(el.value); if(x === null) x = 2n;
+  if(id === "e"){
+    const p = big($("p").value), q = big($("q").value);
+    const phi = (p !== null && q !== null && p > 1n && q > 1n) ? (p - 1n) * (q - 1n) : null;
+    for(let i = 0; i < 100000; i++){
+      x += dir;
+      if(x < 2n || (phi !== null && x >= phi)) return;
+      if(phi === null || u64(W.w_gcd(x, phi)) === 1n){ el.value = x; fit(el); return; }
+    }
+  } else {
+    for(let i = 0; i < 5000000; i++){
+      x += dir;
+      if(x < 2n || x >= (1n << 31n)) return;
+      if(W.w_is_prime(x)){ el.value = x; fit(el); return; }
+    }
+  }
+});
+
+function drawPatch(k){
+  const sv = $("patch"), NS = "http://www.w3.org/2000/svg";
+  sv.removeAttribute("hidden"); sv.innerHTML = "";
+  const add = (tag, a, txt) => { const e = document.createElementNS(NS, tag); for(const x in a) e.setAttribute(x, a[x]); if(txt !== undefined) e.textContent = txt; sv.appendChild(e); return e; };
+  add("rect", {x: 2, y: 2, width: 536, height: 312, rx: 10, class: "pb-bg"});
+  const jack = (x, y, label) => {
+    add("circle", {cx: x, cy: y, r: 14, class: "pb-jack"}); add("circle", {cx: x, cy: y, r: 6, class: "pb-hole"});
+    add("text", {x, y: y - 22, class: "pb-lab"}, label);
+  };
+  const cable = (x1, y1, x2, y2, cls, delay) => {
+    const d = `M${x1} ${y1} C ${x1 + 110} ${y1}, ${x2 - 110} ${y2}, ${x2} ${y2}`;
+    ["cab-rub", "cab-col " + cls, "cab-hi"].forEach(c => add("path", {d, pathLength: 1, class: "cab " + c, style: `animation-delay:${delay}ms`}));
+    add("circle", {cx: x1, cy: y1, r: 9, class: "pb-plug", style: `animation-delay:${delay + 500}ms`});
+    add("circle", {cx: x2, cy: y2, r: 9, class: "pb-plug", style: `animation-delay:${delay + 500}ms`});
+  };
+  jack(70, 46, "p"); jack(70, 116, "q"); jack(310, 81, "n = p·q");
+  jack(70, 208, "e"); jack(70, 280, "φ"); jack(310, 244, "d = e⁻¹ mod φ");
+  cable(70, 46, 310, 81, "c1", 0); cable(70, 116, 310, 81, "c2", 300);
+  cable(70, 208, 310, 244, "c3", 600); cable(70, 280, 310, 244, "c4", 900);
+  add("text", {x: 70, y: 77, class: "pb-val"}, String(k.p)); add("text", {x: 70, y: 147, class: "pb-val"}, String(k.q));
+  add("text", {x: 70, y: 239, class: "pb-val"}, String(k.e)); add("text", {x: 70, y: 311, class: "pb-val"}, String(k.phi));
+  add("text", {x: 334, y: 87, class: "pb-valr"}, String(k.n)); add("text", {x: 334, y: 250, class: "pb-valr"}, String(k.d));
+}
+
+// ---------- 1. keys ----------
+const keyErrors = {1:"p is not prime.", 2:"q is not prime.", 3:"p and q must be different.",
+  4:"e does not work. It must be greater than 1, smaller than φ, and gcd(e, φ) must be 1.",
+  5:"n = p·q is too big. Keep it below 2⁶³.", 6:"p and q are too small. n must be larger than 25."};
+
+$("mk").onclick = async () => {
+  const id = ++runId, out = $("keyOut"); reset(out); showMsg("keyMsg", "");
+  const p = big($("p").value), q = big($("q").value), e = big($("e").value);
+  if(p === null || q === null || e === null){ showMsg("keyMsg", "Enter whole numbers only."); return; }
+  const code = W.w_generate_keys(p, q, e);
+  if(code !== 0){ keys = null; $("patch").setAttribute("hidden", ""); updateKeyLines(); showMsg("keyMsg", keyErrors[code]); return; }
+  const n = u64(W.w_saved_n()), d = u64(W.w_saved_d()), phi = (p - 1n) * (q - 1n);
+  keys = {p, q, e, n, phi, d}; updateKeyLines();
+  Ring.setN(n); Ring.remember(null);
+  Ring.caption(`Every number below ${n} has a contact on this rotor. Locking a block moves it to a new contact, and unlocking moves it back.`);
+  Ring.legend([]); drawPatch(keys);
+
+  let s = work(out, "Work out n and φ", "n goes public. φ stays secret: only someone who knows p and q can calculate it.");
+  line(s, `n = p · q = <b>${p} × ${q} = ${n}</b>`);
+  line(s, `φ = (p − 1)(q − 1) = <b>${p - 1n} × ${q - 1n} = ${phi}</b>`);
+  line(s, `gcd(e, φ) = gcd(${e}, ${phi}) = <b>${u64(W.w_gcd(e, phi))}</b>, so e has an inverse`);
+  await sleep(delay() * 2); if(id !== runId) return;
+
+  s = work(out, "Divide forward with Euclid's algorithm", "Divide φ by e. Then divide the divisor by the remainder, again and again, until the remainder is 0.");
+  const tr = egcdTrace(phi, e);
+  let t = table(["dividend","divisor","quotient","remainder"]); s.appendChild(t.wrap);
+  if(!await addRows(t.body, tr.fwd.map(r => [r.a, r.b, r.q, r.r]), id)) return;
+
+  s = work(out, "Substitute backward to find d", "Walk back up the quotients. Each line turns (s, t) into (t, s − q·t).");
+  t = table(["quotient","s","t"]); s.appendChild(t.wrap);
+  if(!await addRows(t.body, tr.back.map(r => [r.q, r.s, r.t]), id)) return;
+  const dPage = ((tr.t % phi) + phi) % phi;
+  line(s, `The number that multiplies e is t = ${tr.t}. Mod φ that is <b>${dPage}</b>.`);
+  stamp(s, dPage === d, dPage === d ? "matches mod_inverse in rsa.cpp" : "does not match rsa.cpp");
+  await sleep(delay()); if(id !== runId) return;
+
+  s = work(out, "Your keys");
+  line(s, `Public key (n, e): <b>(${n}, ${e})</b>. Give this to everyone.`);
+  line(s, `Private key d: <b>${d}</b>. Keep this to yourself.`);
+  line(s, `Check: e · d mod φ = ${(e * d) % phi}. Letters per block: ${W.w_block_size(n)}.`);
+  const nx = document.createElement("div"); nx.className = "act";
+  nx.innerHTML = `<button class="lever" id="toEnc">Lock a message with it</button>`;
+  s.appendChild(nx); $("toEnc").onclick = () => { goTab("enc"); $("tabs").scrollIntoView({behavior: smooth(), block: "start"}); };
+};
+
+// ---------- exponent table for one block ----------
+async function showExpTable(parent, M, ex, n, expected, id, label, who){
+  const s = work(parent, label, "Read the exponent's bits from the right. When a bit is 1, multiply the answer by the current power. Then square the power.");
+  const tr = expTrace(M, ex, n);
+  line(s, `exponent ${ex} in binary: <b>${bits(ex)}</b>`);
+  const t = table(["i","bit","power","answer so far"]); s.appendChild(t.wrap);
+  Ring.clear();
+  Ring.legend([["d-pw","power: the block squared i times"],["d-xx","answer so far"],["d-fin","final answer"]]);
+  Ring.caption(`Each row hops the dots around the rotor mod ${n}. ${who}`);
+  Ring.dot(1n % n, "d-xx");
+  let prev = 1n % n;
+  const ok = await addRows(t.body, tr.rows.map(r => [r.i, r.bit, r.power, r.x]), id, true, k => {
+    const r = tr.rows[k];
+    Ring.dot(r.power, "d-pw");
+    Ring.link(prev, r.x, "l-trail");
+    Ring.dot(r.x, "d-xx"); prev = r.x;
+  });
+  if(!ok) return false;
+  Ring.dot(tr.result, "d-fin", String(tr.result));
+  stamp(s, tr.result === expected, tr.result === expected ? `${tr.result} matches mod_exp in rsa.cpp` : `table says ${tr.result}, rsa.cpp says ${expected}`);
+  return true;
+}
+function showJumps(from, to, labels, caption){
+  Ring.clear();
+  Ring.legend([["d-m", labels[0]], ["d-c", labels[1]]]);
+  Ring.caption(caption);
+  from.forEach((v, i) => {
+    Ring.link(v, to[i], "l-jump");
+    Ring.dot(v, "d-m", from.length <= 10 ? String(i + 1) : ""); Ring.dot(to[i], "d-c");
+  });
+}
+
+// ---------- 2. lock ----------
+$("go").onclick = async () => {
+  const id = ++runId, out = $("encOut"); reset(out); showMsg("encMsg", "");
+  if(!keys){ showMsg("encMsg", "Make a key on the first switch before locking a message."); return; }
+  const {n, e} = keys, k = W.w_block_size(n);
+  const clean = $("msg").value.toUpperCase().replace(/[^A-Z]/g, "");
+  if(!clean){ showMsg("encMsg", "There are no letters in the message."); return; }
+  const letters = clean.split(""); while(letters.length % k) letters.push("X");
+  Ring.setN(n); Ring.remember(null);
+
+  let s = work(out, "Turn letters into numbers", `A is 00, B is 01, and so on up to Z = 25. This key holds ${k} letter${k > 1 ? "s" : ""} per block.`);
+  const box = document.createElement("div"); box.className = "tiles"; s.appendChild(box);
+  for(let i = 0; i < letters.length; i++){
+    if(id !== runId) return;
+    const v = letters[i].charCodeAt(0) - 65, d = document.createElement("div");
+    d.className = "tile" + (i >= clean.length ? " pad" : "");
+    d.innerHTML = `<b>${letters[i]}</b><i>${padTo(v, 2)}</i>`; box.appendChild(d);
+    flashLamp(letters[i], true);
+    await sleep(Math.max(delay() / 3, $("instant").checked ? 0 : 60));
+  }
+  if(letters.length > clean.length) line(s, `${letters.length - clean.length} × X was added so the last block is full.`);
+
+  s = work(out, "Glue the numbers into blocks", `Every block M must stay below n = ${n}, or it cannot be recovered. The largest block of ${k} letters is ${"25".repeat(k)}.`);
+  const blocks = [];
+  for(let i = 0; i < letters.length; i += k){
+    let M = 0n; for(let j = 0; j < k; j++) M = M * 100n + BigInt(letters[i + j].charCodeAt(0) - 65);
+    blocks.push(M);
+  }
+  const w = String(n).length, cs = blocks.map(M => u64(W.w_encrypt(M, n, e)));
+  const bb = document.createElement("div"); bb.className = "blocks"; s.appendChild(bb);
+  blocks.forEach((M, i) => {
+    const d = document.createElement("div"); d.className = "blk"; d.style.animation = `strike .3s ${i * 70}ms both`;
+    d.innerHTML = `<small>block ${i + 1}</small>${padTo(M, 2 * k)}`; bb.appendChild(d);
+  });
+  await sleep(delay() * 2); if(id !== runId) return;
+
+  s = work(out, "Lock each block with C = M^e mod n", "The public key does the locking. The result looks like a random number.");
+  const tbl = table(["block","M","C"]); s.appendChild(tbl.wrap);
+  const all = () => showJumps(blocks, cs, ["message block M", "cipher block C"], `Each amber line is one block jumping from M to C on the rotor mod ${n}.`);
+  if(!await addRows(tbl.body, blocks.map((M, i) => [i + 1, padTo(M, 2 * k), padTo(cs[i], w)]), id, false, () => {})) return;
+  all(); Ring.remember(all);
+
+  s = work(out, "See how one block is locked", "Pick any block to watch its repeated squaring.");
+  const pick = document.createElement("div"); pick.className = "blocks"; s.appendChild(pick);
+  const detail = document.createElement("div"); s.appendChild(detail);
+  const showOne = async i => {
+    [...pick.children].forEach((c, j) => c.setAttribute("aria-pressed", j === i));
+    detail.innerHTML = "";
+    await showExpTable(detail, blocks[i], e, n, cs[i], id, `Block ${i + 1}: ${blocks[i]}<sup>${e}</sup> mod ${n}`, "Red is where it ends up.");
+  };
+  blocks.forEach((M, i) => {
+    const b = document.createElement("button"); b.className = "blk"; b.setAttribute("aria-pressed", "false");
+    b.innerHTML = `<small>block ${i + 1}</small>${padTo(M, 2 * k)} → ${padTo(cs[i], w)}`;
+    b.onclick = () => { ++runId; showOne(i); }; pick.appendChild(b);
+  });
+  await showOne(0); if(id !== runId) return;
+
+  s = work(out, "Your cipher text", "This is what you send. Only the private key d can turn it back.");
+  const full = encryptText($("msg").value, n, e);
+  const o = document.createElement("div"); o.className = "result"; o.textContent = full; s.appendChild(o);
+  stamp(s, full === cs.map(c => padTo(c, w)).join(" "), "matches encrypt_text in rsa.cpp");
+  const nx = document.createElement("div"); nx.className = "act";
+  nx.innerHTML = `<button class="lever plain" id="cp">Copy</button><button class="lever" id="toDec">Unlock it</button>`;
+  s.appendChild(nx);
+  $("cp").onclick = () => navigator.clipboard?.writeText(full);
+  $("toDec").onclick = () => { $("cipher").value = full; goTab("dec"); $("tabs").scrollIntoView({behavior: smooth(), block: "start"}); };
+  all();
+};
+
+// ---------- 3. unlock ----------
+$("dgo").onclick = async () => {
+  const id = ++runId, out = $("decOut"); reset(out); showMsg("decMsg", "");
+  if(!keys){ showMsg("decMsg", "Make a key on the first switch before unlocking a message."); return; }
+  const {n, d} = keys, k = W.w_block_size(n), width = String(n).length;
+  const toks = $("cipher").value.trim().split(/\s+/).filter(Boolean);
+  if(!toks.length){ showMsg("decMsg", "Paste some cipher blocks first."); return; }
+  const cs = toks.map(big);
+  if(cs.some(c => c === null)){ showMsg("decMsg", "Cipher blocks must be numbers separated by spaces."); return; }
+  if(cs.some(c => c >= n)){ showMsg("decMsg", `Every block must be smaller than n = ${n}. This may be the wrong key pair.`); return; }
+  Ring.setN(n); Ring.remember(null);
+
+  let s = work(out, "Unlock each block with M = C^d mod n", "The private key d undoes the locking.");
+  const ms = cs.map(c => u64(W.w_decrypt(c, n, d)));
+  const tbl = table(["block","C","M"]); s.appendChild(tbl.wrap);
+  const all = () => showJumps(cs, ms, ["cipher block C", "message block M"], `Each amber line is one block jumping from C back to M on the rotor mod ${n}.`);
+  if(!await addRows(tbl.body, cs.map((c, i) => [i + 1, padTo(c, width), padTo(ms[i], 2 * k)]), id, false, () => {})) return;
+  all(); Ring.remember(all);
+
+  s = work(out, "See how one block is unlocked", "Pick any block to watch its repeated squaring.");
+  const pick = document.createElement("div"); pick.className = "blocks"; s.appendChild(pick);
+  const detail = document.createElement("div"); s.appendChild(detail);
+  const showOne = async i => {
+    [...pick.children].forEach((c, j) => c.setAttribute("aria-pressed", j === i));
+    detail.innerHTML = "";
+    await showExpTable(detail, cs[i], d, n, ms[i], id, `Block ${i + 1}: ${cs[i]}<sup>${d}</sup> mod ${n}`, "It lands on the original message block.");
+  };
+  cs.forEach((c, i) => {
+    const b = document.createElement("button"); b.className = "blk"; b.setAttribute("aria-pressed", "false");
+    b.innerHTML = `<small>block ${i + 1}</small>${padTo(c, width)} → ${padTo(ms[i], 2 * k)}`;
+    b.onclick = () => { ++runId; showOne(i); }; pick.appendChild(b);
+  });
+  await showOne(0); if(id !== runId) return;
+
+  s = work(out, "Turn the numbers back into letters", "Split each M into pairs of digits. Every pair must be 25 or less.");
+  const box = document.createElement("div"); box.className = "tiles"; s.appendChild(box);
+  let bad = false;
+  for(const M of ms){
+    const str = padTo(M, 2 * k);
+    for(let i = 0; i < str.length; i += 2){
+      if(id !== runId) return;
+      const v = Number(str.slice(i, i + 2)); if(v > 25) bad = true;
+      const t = document.createElement("div"); t.className = "tile";
+      t.innerHTML = `<b>${v <= 25 ? String.fromCharCode(65 + v) : "?"}</b><i>${str.slice(i, i + 2)}</i>`; box.appendChild(t);
+      await sleep(delay() / 3);
+    }
+  }
+  s = work(out, "Your message");
+  let text = null;
+  try{ text = decryptText($("cipher").value, n, d); }catch(err){}
+  if(text === null || bad){
+    line(s, "A block did not turn into letters (a pair above 25). This is not the right key for this cipher text.");
+    return;
+  }
+  const o = document.createElement("div"); o.className = "result"; o.textContent = text; s.appendChild(o);
+  line(s, "A trailing X is probably padding.");
+  all();
+};
+
+// ---------- 4. break a key ----------
+$("ago").onclick = async () => {
+  const id = ++runId, out = $("atkOut"); reset(out); showMsg("atkMsg", "");
+  const n = big($("an").value), e = big($("ae").value);
+  if(n === null || e === null){ showMsg("atkMsg", "n and e must be whole numbers."); return; }
+  if(n >= 1n << 62n){ showMsg("atkMsg", "This tool handles n below 2⁶². That is the whole point: a real key is far bigger."); return; }
+  Ring.setN(n); Ring.remember(null); Ring.legend([]);
+  Ring.caption(`The attacker knows n = ${n} and nothing else. Once p and q are found, the secret key falls out.`);
+
+  let s = work(out, "Factor n by trial division", "Try 2, 3, 4, and so on, until one of them divides n. Only numbers up to √n need trying.");
+  const info = line(s, "");
+  const bar = document.createElement("div"); bar.className = "bar"; bar.innerHTML = "<div></div>"; s.appendChild(bar);
+  const fill = bar.firstChild;
+  const limit = Math.floor(Math.sqrt(Number(n))) + 1;
+  let p = 2, found = 0, tries = 0;
+  const useNum = n < (1n << 53n), nn = Number(n);
+  const t0 = performance.now();
+  while(found === 0 && p <= limit){
+    const stop = Math.min(limit, p + 30000);
+    for(; p <= stop; p++){
+      tries++;
+      if(useNum ? nn % p === 0 : n % BigInt(p) === 0n){ found = p; break; }
+    }
+    fill.style.width = Math.min(100, p / limit * 100) + "%";
+    info.innerHTML = `trying p = <b>${p}</b>, ${tries} divisions so far`;
+    await sleep(0); if(id !== runId) return;
+  }
+  if(!found){ info.innerHTML = ""; showMsg("atkMsg", "No factor found, so n is prime. There is nothing to break."); return; }
+  const P = BigInt(found), Q = n / P;
+  info.innerHTML = `found after <b>${tries}</b> divisions (${Math.round(performance.now() - t0)} ms): <b>p = ${P}</b> and <b>q = ${Q}</b>`;
+  fill.style.width = "100%";
+  await sleep(delay() * 2); if(id !== runId) return;
+
+  s = work(out, "Rebuild φ and d", "With p and q known, φ and the private key are one calculation away.");
+  const phi = (P - 1n) * (Q - 1n);
+  line(s, `φ = (p − 1)(q − 1) = ${P - 1n} × ${Q - 1n} = <b>${phi}</b>`);
+  const code = W.w_generate_keys(P, Q, e);
+  if(code !== 0){ line(s, `${esc(keyErrors[code])} The factors of n were ${P} and ${Q}.`); return; }
+  const d = u64(W.w_saved_d());
+  line(s, `d = e⁻¹ mod φ = <b>${d}</b> (mod_inverse in rsa.cpp)`);
+  line(s, `A real 2048-bit n would need about 10³⁰⁸ divisions. This one needed ${tries}.`);
+  await sleep(delay() * 2); if(id !== runId) return;
+
+  s = work(out, "Read the message");
+  let text = null;
+  try{ text = decryptText($("ac").value, n, d); }catch(err){}
+  if(text === null){ line(s, "The cipher text does not decode with this key."); return; }
+  const o = document.createElement("div"); o.className = "result"; o.textContent = text; s.appendChild(o);
+  line(s, "A trailing X is probably padding.");
+  const cs = $("ac").value.trim().split(/\s+/).map(big).filter(x => x !== null && x < n);
+  if(cs.length){
+    const ms = cs.map(c => u64(W.w_decrypt(c, n, d)));
+    const all = () => showJumps(cs, ms, ["cipher block C", "message block M"], `The attacker's key moves every block from C back to M mod ${n}.`);
+    all(); Ring.remember(all);
+  }
+};
+
+// ---------- voice input ----------
+(() => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition, mic = $("mic");
+  if(!SR){ mic.disabled = true; mic.title = "Voice input needs Chrome or Edge"; return; }
+  const rec = new SR(); rec.lang = "en-US"; rec.interimResults = true; rec.continuous = false;
+  let on = false;
+  let base = "";
+  rec.onresult = ev => { const said = [...ev.results].map(r => r[0].transcript).join(" "); $("msg").value = (base ? base + " " : "") + said; };
+  rec.onend = () => { on = false; mic.classList.remove("rec"); };
+  rec.onerror = ev => { showMsg("encMsg", "Voice input did not work (" + ev.error + "). You can still type."); };
+  mic.onclick = () => {
+    if(on){ rec.stop(); return; }
+    try{ base = $("msg").value.trim(); rec.start(); on = true; mic.classList.add("rec"); showMsg("encMsg", ""); }catch(err){}
+  };
+})();
+
+// ---------- start ----------
+loadWasm().then(() => {
+  $("status").className = "status ok"; $("status").lastElementChild.textContent = "rsa.cpp is running";
+}).catch(err => {
+  $("status").className = "status err"; $("status").lastElementChild.textContent = "could not load rsa.cpp"; console.error(err);
+});
+</script>
+</body>
+</html>
